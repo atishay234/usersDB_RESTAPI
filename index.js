@@ -5,19 +5,24 @@ const User = require("./User");
 const Post = require("./Post");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
+
+// middlewares to parse the data
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-mongoose.set("strictQuery", true).connect("mongodb://localhost:27017/usersdb", {
+// connecting to local mongoDB database named usersdb
+const connectionString = "mongodb://localhost:27017/usersdb";
+mongoose.set("strictQuery", true).connect(connectionString, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "Connection Error:"));
 db.once("open", () => {
-  console.log("connection Successfully Established");
+  console.log("Database Connection Successfully Established");
 });
 
+// bcrypt password hashing  (!should never store password without hashing)
 const hashPassword = async (password, saltRounds = 10) => {
   try {
     const salt = await bcrypt.genSalt(saltRounds);
@@ -28,12 +33,13 @@ const hashPassword = async (password, saltRounds = 10) => {
   return null;
 };
 
+// dummy Function
 let sendMail = (subject, body, email) => {
   return "mail sent";
 };
 
+// POST route for adding new user.
 app.post("/user", async (req, res) => {
-  console.log(req.body);
   try {
     const newUser = new User({
       name: req.body.name,
@@ -41,12 +47,13 @@ app.post("/user", async (req, res) => {
       password: await hashPassword(req.body.password),
     });
     await newUser.save();
-    res.send("ok");
+    res.send("ok added the user");
   } catch (err) {
     res.status(404).send(err.message);
   }
 });
 
+// GET route to get all the users
 app.get("/user", async (req, res) => {
   try {
     const allUsers = await User.find({});
@@ -57,6 +64,8 @@ app.get("/user", async (req, res) => {
   }
 });
 
+// POST route for adding a post for a user
+// 1.request Body consists of text and user
 app.post("/post", async (req, res) => {
   try {
     const newPost = new Post(req.body);
@@ -72,9 +81,10 @@ app.post("/post", async (req, res) => {
   }
 });
 
+// GET route for getting all the posts
 app.get("/post", async (req, res) => {
   try {
-    const allPosts = await Post.find({}).populate(["likes"]).lean();
+    const allPosts = await Post.find({}).populate(["likes"]);
     return res.json(allPosts);
   } catch (err) {
     console.log(err);
@@ -82,6 +92,8 @@ app.get("/post", async (req, res) => {
   }
 });
 
+// POST route for adding a like for a post
+// 1. the request body contains postId and userId
 app.post("/like", async (req, res) => {
   const { userId, postId } = req.body;
   try {
@@ -106,6 +118,7 @@ app.post("/like", async (req, res) => {
   }
 });
 
+// GET route for getting top 10 liked posts
 app.get("/famous", async (req, res) => {
   try {
     const allPosts = await Post.find({}).lean();
